@@ -1,11 +1,13 @@
 import { createDemoState, dimensions, roleProfiles } from './data.js';
 import { readMeetingFile, localExtractSignals, normaliseAiSignals } from './meeting.js';
+import { callDeepSeek, parseJsonObject } from './ai.js';
 
 const STORE = 'mmo-talent-compass-v1';
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
 let deepseekKey = '';
 let aiText = '';
+let evidenceAudit = {personId:'',status:'等待运行',model:'deepseek-flash',result:null};
 let state;
 try { state = JSON.parse(localStorage.getItem(STORE)) || createDemoState(); } catch { state = createDemoState(); }
 let view = 'overview';
@@ -113,7 +115,30 @@ function renderProfile(p){
  return `<div class="card"><div class="profile-top"><div class="avatar">${esc(p.name.slice(-1))}</div><div><h2>${esc(p.name)}</h2><p>${esc(p.title)} · ${esc(p.team)}</p></div></div><div class="profile-pills">${pill(p.role)}${pill(p.mobility,p.mobility==='暂不流动'?'amber':'')}${pill('证据'+h.label,h.tone)}</div>
  <div class="card-head"><h3>岗位能力画像 <span class="tiny">1–4级 · 模拟评价</span></h3>${btn('人工校准画像','calibrate-person','small ghost')}</div>${dimensions.map(d=>`<div class="dimension-row"><span>${esc(d.name)}</span>${bar(num(p.scores?.[d.id])*25,num(p.scores?.[d.id])<3?'amber':'')}<b>${num(p.scores?.[d.id])}/4</b></div>`).join('')}
  <div class="note section-space">目标：${esc(matchStage)} · ${esc(matchRole)}。当前为规则初筛 ${m.score} 分；${m.evidence.label}。该数字仅用于排序，最终需要业务负责人、HRBP与员工确认。${state.calibrations?.filter(c=>c.personId===p.id).length?` 已记录 ${state.calibrations.filter(c=>c.personId===p.id).length} 次人工校准。`:''}</div></div>
- <div class="card"><div class="card-head"><div><h2>贡献证据时间线</h2><div class="sub">最近事件在前 · 点击可核对来源</div></div>${btn('补充证据','add-evidence','small ghost')}</div>${ev.map(e=>`<div class="signal"><div class="signal-icon">${confirmed(e)?'✓':'?'}</div><div><div class="signal-title">${esc(e.title)} ${pill(e.status,e.status==='待确认'?'amber':'')}</div><div class="signal-summary">${esc(e.summary)}</div><div class="signal-meta">${fmt(e.date)} · ${esc(e.eventType)} · ${esc(e.dimension)} · ${esc(e.source)}</div></div></div>`).join('')||'<div class="empty">暂无证据。请补充事件记录。</div>'}</div>`;
+ <div class="card"><div class="card-head"><div><h2>贡献证据时间线</h2><div class="sub">最近事件在前 · 点击可核对来源</div></div>${btn('补充证据','add-evidence','small ghost')}</div>${ev.map(e=>`<div class="signal"><div class="signal-icon">${confirmed(e)?'✓':'?'}</div><div><div class="signal-title">${esc(e.title)} ${pill(e.status,e.status==='待确认'?'amber':'')}</div><div class="signal-summary">${esc(e.summary)}</div><div class="signal-meta">${fmt(e.date)} · ${esc(e.eventType)} · ${esc(e.dimension)} · ${esc(e.source)}</div></div></div>`).join('')||'<div class="empty">暂无证据。请补充事件记录。</div>'}</div>${renderEvidenceAudit(p)}`;
+}
+
+function auditList(value, limit=4){return Array.isArray(value)?value.slice(0,limit):[];}
+function normaliseAudit(value){
+ const data=value?.audit||value||{};
+ const findings=auditList(data.supported_findings).map(x=>({claim:String(x?.claim||'').trim(),evidenceIds:auditList(x?.evidence_ids,4).map(String)})).filter(x=>x.claim);
+ const risks=auditList(data.risks).map(x=>({type:String(x?.type||'待核验').trim(),description:String(x?.description||'').trim(),evidenceIds:auditList(x?.evidence_ids,4).map(String)})).filter(x=>x.description);
+ const questions=auditList(data.follow_up_questions).map(x=>({question:String(x?.question||'').trim(),why:String(x?.why||'').trim()})).filter(x=>x.question);
+ const actions=auditList(data.verification_actions,3).map(x=>({action:String(x?.action||'').trim(),owner:String(x?.owner||'直属主管 / HRBP').trim(),days:Math.max(7,Math.min(90,Number(x?.days)||30))})).filter(x=>x.action);
+ return {confidence:['高','中','低'].includes(data.confidence)?data.confidence:'低',summary:String(data.summary||'').trim(),findings,risks,questions,actions};
+}
+function auditEvidenceNames(ids){return ids.map(id=>state.evidence.find(e=>e.id===id)?.title).filter(Boolean).join('、');}
+function renderEvidenceAudit(p){
+ const current=evidenceAudit.personId===p.id?evidenceAudit:{personId:p.id,status:'等待运行',model:evidenceAudit.model,result:null};
+ const result=current.result;
+ return `<div class="card evidence-audit"><div class="card-head"><div><div class="tagline-red">AI EVIDENCE AUDIT</div><h2>AI人才证据审计与追问助手</h2><div class="sub">检查证据充分性、归属与时效，生成下一次沟通问题；不自动改分。</div></div>${pill('人工决策','gray')}</div>
+ <div class="form-grid audit-controls"><div class="field"><label>DeepSeek API Key</label><input class="input" id="auditDeepseekKey" type="password" placeholder="${deepseekKey?'当前会话已填写':'sk-...'}" autocomplete="off" /></div><div class="field"><label>模型</label><select class="select" id="auditDeepseekModel"><option value="deepseek-flash" ${current.model==='deepseek-flash'?'selected':''}>deepseek-flash</option><option value="deepseek-v4-pro" ${current.model==='deepseek-v4-pro'?'selected':''}>deepseek-v4-pro</option></select></div><div class="field wide"><button class="button" data-action="run-evidence-audit">审计 ${esc(p.name)} 的证据</button></div></div>
+ <div class="note section-space"><strong>${esc(current.status)}</strong><br><span class="tiny">仅发送该员工的模拟画像与证据；Key 只保留在当前页面内存。真实落地需脱敏、权限控制和服务端代理。</span></div>
+ ${result?`<div class="audit-overview section-space"><div><span class="tiny">证据结论可信度</span><strong>${esc(result.confidence)}</strong></div><p>${esc(result.summary||'模型未给出总体摘要')}</p></div><div class="audit-grid section-space">
+ <section><h3>已得到支持的判断</h3>${result.findings.map(x=>`<div class="audit-item"><strong>${esc(x.claim)}</strong>${x.evidenceIds.length?`<small>依据：${esc(auditEvidenceNames(x.evidenceIds)||x.evidenceIds.join('、'))}</small>`:''}</div>`).join('')||'<div class="empty">没有足够证据形成稳定判断</div>'}</section>
+ <section><h3>证据风险与缺口</h3>${result.risks.map(x=>`<div class="audit-item"><span class="pill amber">${esc(x.type)}</span><p>${esc(x.description)}</p>${x.evidenceIds.length?`<small>相关记录：${esc(auditEvidenceNames(x.evidenceIds)||x.evidenceIds.join('、'))}</small>`:''}</div>`).join('')||'<div class="empty">模型未指出明确风险，仍需人工复核</div>'}</section>
+ <section><h3>下一次沟通追问</h3><ol>${result.questions.map(x=>`<li><strong>${esc(x.question)}</strong>${x.why?`<small>${esc(x.why)}</small>`:''}</li>`).join('')}</ol></section>
+ <section><h3>建议补证行动</h3>${result.actions.map(x=>`<div class="audit-item"><strong>${esc(x.action)}</strong><small>${esc(x.owner)} · ${x.days}天内</small></div>`).join('')||'<div class="empty">暂无建议行动</div>'}</section></div><div class="button-row section-space"><button class="button small ghost" data-action="copy-audit-questions">复制追问清单</button>${result.actions.length?'<button class="button small" data-action="commit-audit-actions">加入人才行动跟踪</button>':''}<button class="button small ghost" data-action="clear-evidence-audit">清空结果</button></div><p class="tiny">AI输出属于讨论材料。HRBP和业务负责人需核对原始证据、贡献归属与员工意愿。</p>`:''}</div>`;
 }
 
 function renderSignals(){
@@ -253,11 +278,8 @@ async function analyseMeetingWithAi(){
  meetingImport.status='DeepSeek 正在梳理候选信号…';render();
  try{
   const allowed=dimensions.map(d=>d.name);
-  const response=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${deepseekKey}`},body:JSON.stringify({model:meetingImport.model,response_format:{type:'json_object'},messages:[{role:'system',content:`你是HRBP证据整理助手。只提取纪要中与指定员工直接相关、可追溯的行为事实，不做绩效定级、晋升或去留判断，不补充原文没有的信息。能力维度只能取：${allowed.join('、')}。输出JSON对象：{"signals":[{"title":"不超过30字","summary":"本人承担什么及可观察结果","dimension":"允许的维度","evidence_quote":"支持判断的原文短句","confidence":"高/中/低","reason":"为何映射到该能力及待核验点"}]}。最多6条；证据不足时返回空数组。`},{role:'user',content:`谈话对象：${target?.name||meetingImport.personId}\n文件名：${meetingImport.fileName}\n会议纪要：\n${meetingImport.text}`}],max_tokens:1600,stream:false})});
-  if(!response.ok)throw Error(`API返回 ${response.status}`);
-  const json=await response.json();
-  const content=json.choices?.[0]?.message?.content?.trim();if(!content)throw Error('API未返回可用内容');
-  meetingImport.candidates=normaliseAiSignals(JSON.parse(content),allowed);
+  const {content}=await callDeepSeek({apiKey:deepseekKey,model:meetingImport.model,json:true,maxTokens:2200,messages:[{role:'system',content:`你是HRBP证据整理助手。只提取纪要中与指定员工直接相关、可追溯的行为事实，不做绩效定级、晋升或去留判断，不补充原文没有的信息。能力维度只能取：${allowed.join('、')}。输出JSON对象：{"signals":[{"title":"不超过30字","summary":"本人承担什么及可观察结果","dimension":"允许的维度","evidence_quote":"支持判断的原文短句","confidence":"高/中/低","reason":"为何映射到该能力及待核验点"}]}。最多6条；证据不足时返回空数组。`},{role:'user',content:`谈话对象：${target?.name||meetingImport.personId}\n文件名：${meetingImport.fileName}\n会议纪要：\n${meetingImport.text}`}]});
+  meetingImport.candidates=normaliseAiSignals(parseJsonObject(content),allowed);
   meetingImport.mode='ai';meetingImport.status=`DeepSeek 解析完成，生成 ${meetingImport.candidates.length} 条候选信号；请逐条人工核验`;
   render();toast('AI候选信号已生成，尚未写入档案');
  }catch(error){meetingImport.status=`AI解析失败：${error.message}。仍可使用本地候选信号或手动记录。`;render();}
@@ -269,17 +291,44 @@ function commitMeetingSignals(){
  rows.forEach((x,i)=>state.evidence.push({id:'M'+stamp+i,personId:meetingImport.personId,title:x.title.trim(),eventType:'沟通纪要',summary:x.summary.trim(),dimension:x.dimension,date:today(),status:'待确认',source:`${meetingImport.fileName} · ${meetingImport.mode==='ai'?'AI辅助抽取':'本地规则抽取'}`}));
  persist();meetingImport={fileName:'',text:'',personId:meetingImport.personId,candidates:[],status:`已加入 ${rows.length} 条待确认信号`,model:meetingImport.model,mode:'local'};render();toast(`已加入 ${rows.length} 条待确认信号`);
 }
+async function runEvidenceAudit(){
+ const p=person(state.selectedPersonId);
+ if(!p){toast('请先选择一位员工');return;}
+ const input=document.querySelector('#auditDeepseekKey');
+ deepseekKey=input?.value.trim()||deepseekKey;
+ const model=document.querySelector('#auditDeepseekModel')?.value||'deepseek-flash';
+ if(!deepseekKey){toast('请先输入DeepSeek API Key');return;}
+ const evidence=evFor(p.id).map(e=>({id:e.id,title:e.title,event_type:e.eventType,summary:e.summary,dimension:e.dimension,date:e.date,age_days:age(e.date),status:e.status,source:e.source}));
+ evidenceAudit={personId:p.id,status:'DeepSeek 正在审计证据链…',model,result:null};render();
+ try{
+  const payload={person:{name:p.name,role:p.role,title:p.title,project:p.project,stage:p.stage,mobility:p.mobility},current_levels:Object.fromEntries(dimensions.map(d=>[d.name,num(p.scores?.[d.id])])),evidence};
+  const {content}=await callDeepSeek({apiKey:deepseekKey,model,json:true,maxTokens:2600,messages:[{role:'system',content:'你是谨慎的HRBP人才证据审计助手。只审计证据质量，不重评员工、不修改能力等级、不提出晋升、淘汰或任用结论。重点检查：事实与评价是否混淆、贡献归属是否明确、来源能否交叉验证、证据是否过期、能力维度是否缺失、记录之间是否矛盾。证据不足必须明确写不确定。输出JSON对象，字段严格为：{"audit":{"confidence":"高/中/低","summary":"总体证据质量摘要，不超过100字","supported_findings":[{"claim":"有证据支持的谨慎判断","evidence_ids":["记录ID"]}],"risks":[{"type":"归属/时效/单一来源/矛盾/缺口/事实评价混淆","description":"风险说明","evidence_ids":["记录ID"]}],"follow_up_questions":[{"question":"下次沟通可直接询问的问题","why":"它要验证什么"}],"verification_actions":[{"action":"可执行的补证行动","owner":"直属主管/HRBP/员工本人","days":30}]}}。每个数组最多4项。'} ,{role:'user',content:`请审计以下模拟人才档案。\n${JSON.stringify(payload)}`} ]});
+  evidenceAudit={personId:p.id,status:'审计完成，请由HRBP和业务负责人核对',model,result:normaliseAudit(parseJsonObject(content))};render();toast('AI证据审计已生成，不会自动修改评分');
+ }catch(error){evidenceAudit={personId:p.id,status:`审计失败：${error.message}`,model,result:null};render();}
+}
+function commitAuditActions(){
+ const p=person(evidenceAudit.personId), actions=evidenceAudit.result?.actions||[];
+ if(!p||!actions.length){toast('没有可加入的验证行动');return;}
+ const stamp=Date.now();
+ actions.forEach((x,i)=>state.actions.push({id:'AA'+stamp+i,personId:p.id,title:x.action,owner:x.owner,due:new Date(Date.now()+x.days*86400000).toISOString().slice(0,10),status:'待开始',source:'AI证据审计建议 · 人工确认录入'}));
+ persist();toast(`已将 ${actions.length} 项建议加入人才行动跟踪`);
+}
+function copyAuditQuestions(){
+ const p=person(evidenceAudit.personId), questions=evidenceAudit.result?.questions||[];
+ if(!p||!questions.length){toast('没有可复制的追问');return;}
+ const text=`${p.name} · 证据核验追问\n`+questions.map((x,i)=>`${i+1}. ${x.question}${x.why?`\n   目的：${x.why}`:''}`).join('\n');
+ navigator.clipboard.writeText(text).then(()=>toast('追问清单已复制')).catch(()=>toast('浏览器未允许复制'));
+}
 async function runAi(){
  const input=document.querySelector('#deepseekKey');const status=document.querySelector('#aiStatus');const button=document.querySelector('#runAi');
  deepseekKey=input?.value.trim()||deepseekKey;
  if(!deepseekKey){toast('请先输入DeepSeek API Key');return;}
  button.disabled=true;status.textContent='正在生成，请稍候…';
  try{
-  const response=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${deepseekKey}`},body:JSON.stringify({model:document.querySelector('#deepseekModel').value,messages:[{role:'system',content:'你是HRBP的报告写作助手。只根据给定的模拟数据，输出中文、简短的讨论提纲。不得给员工自动定性，不得虚构事实。请明确哪些判断需要人工核验。'},{role:'user',content:reportText()+'\n请给出三条业务讨论问题和三条下一步行动，每条不超过50字。'}],max_tokens:700,stream:false})});
-  if(!response.ok)throw Error(`API返回 ${response.status}`);
-  const json=await response.json();aiText=json.choices?.[0]?.message?.content?.trim();if(!aiText)throw Error('API未返回可用内容');
+  const {content}=await callDeepSeek({apiKey:deepseekKey,model:document.querySelector('#deepseekModel').value,maxTokens:1400,messages:[{role:'system',content:'你是HRBP的报告写作助手。只根据给定的模拟数据，输出中文、简短的讨论提纲。不得给员工自动定性，不得虚构事实。请明确哪些判断需要人工核验。'},{role:'user',content:reportText()+'\n请给出三条业务讨论问题和三条下一步行动，每条不超过50字。'}]});
+  aiText=content;
   render();toast('AI讨论提纲已生成，需人工核验');
- }catch(error){status.textContent=`连接失败：${error.message}。如浏览器跨域受限，可继续使用本地报告。`;button.disabled=false;}
+ }catch(error){status.textContent=`生成失败：${error.message}。请检查Key、余额或模型权限；本地报告仍可使用。`;button.disabled=false;}
 }
 
 document.addEventListener('click',event=>{
@@ -298,6 +347,10 @@ document.addEventListener('click',event=>{
   else if(action==='create-action')actionForm();
   else if(action==='calibrate-person')calibrationForm();
   else if(action==='analyse-meeting-ai')analyseMeetingWithAi();
+  else if(action==='run-evidence-audit')runEvidenceAudit();
+  else if(action==='commit-audit-actions')commitAuditActions();
+  else if(action==='copy-audit-questions')copyAuditQuestions();
+  else if(action==='clear-evidence-audit'){evidenceAudit={personId:state.selectedPersonId,status:'等待运行',model:evidenceAudit.model,result:null};render();}
   else if(action==='import-meeting-signals')commitMeetingSignals();
   else if(action==='clear-meeting-import'){meetingImport={fileName:'',text:'',personId:meetingImport.personId,candidates:[],status:'等待上传会议纪要',model:meetingImport.model,mode:'local'};render();}
   else if(action==='view-candidate'){state.selectedPersonId=selectedCandidate||state.people[0]?.id;persist();setView('people');}
@@ -307,7 +360,7 @@ document.addEventListener('click',event=>{
   else if(action==='template-evidence')csvDownload('证据导入模板.csv',evidenceHeaders,[{person_id:'P01',title:'示例方案评审',event_type:'方案评审',summary:'描述本人贡献、结果及需要核验的部分',dimension:'专业设计',date:today(),status:'待确认',source:'方案文档'}]);
   else if(action==='export-data'){const blob=new Blob([JSON.stringify({...state,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='mmo-talent-compass-data.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   else if(action==='reset-demo')showModal(`<h2>恢复模拟数据？</h2><p>这会覆盖当前浏览器里录入、导入和确认过的演示数据。建议先导出备份。</p><div class="modal-actions"><button class="button ghost" data-action="close-modal">取消</button><button class="button warn" data-action="confirm-reset">恢复</button></div>`);
-  else if(action==='confirm-reset'){state=createDemoState();selectedCandidate=null;matchRole=state.config.targetRole;matchStage=state.config.stage;meetingImport={fileName:'',text:'',personId:state.selectedPersonId||state.people[0]?.id||'',candidates:[],status:'等待上传会议纪要',model:'deepseek-flash',mode:'local'};persist();closeModal();render();toast('已恢复模拟数据');}
+  else if(action==='confirm-reset'){state=createDemoState();selectedCandidate=null;matchRole=state.config.targetRole;matchStage=state.config.stage;meetingImport={fileName:'',text:'',personId:state.selectedPersonId||state.people[0]?.id||'',candidates:[],status:'等待上传会议纪要',model:'deepseek-flash',mode:'local'};evidenceAudit={personId:'',status:'等待运行',model:'deepseek-flash',result:null};persist();closeModal();render();toast('已恢复模拟数据');}
   else if(action==='copy-report')navigator.clipboard.writeText(reportText()).then(()=>toast('报告摘要已复制')).catch(()=>toast('浏览器未允许复制'));
   else if(action==='print-report')window.print();
   return;
@@ -324,6 +377,7 @@ document.addEventListener('change',event=>{
  if(id==='meetingFile'&&event.target.files[0])importMeetingFile(event.target.files[0]);
  if(id==='meetingPerson'){meetingImport.personId=event.target.value;render();}
  if(id==='meetingDeepseekModel')meetingImport.model=event.target.value;
+ if(id==='auditDeepseekModel')evidenceAudit.model=event.target.value;
  if(event.target.matches('[data-draft-select]')){const item=meetingImport.candidates[Number(event.target.dataset.draftSelect)];if(item)item.selected=event.target.checked;}
  if(event.target.matches('[data-draft-dimension]')){const item=meetingImport.candidates[Number(event.target.dataset.draftDimension)];if(item)item.dimension=event.target.value;}
 });
