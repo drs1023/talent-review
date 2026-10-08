@@ -80,6 +80,9 @@ function renderOverview(){
   const stale=state.people.filter(p=>!evidenceHealth(p).latest || age(evidenceHealth(p).latest)>90);
   const keyRoles=['系统/数值','玩法/战斗','内容/叙事','活动/运营'];
   const roleCounts=keyRoles.map(role=>({role,count:state.people.filter(p=>p.role===role).length}));
+  const bucket=v=>v>=3.65?2:v>=3.2?1:0;
+  const boxes=Array.from({length:3},()=>Array.from({length:3},()=>[]));
+  state.people.forEach(p=>{const performance=(num(p.scores.player)+num(p.scores.craft)+num(p.scores.delivery))/3;const potential=(num(p.scores.complexity)+num(p.scores.collaboration)+num(p.scores.exploration))/3;boxes[2-bucket(potential)][bucket(performance)].push(p);});
   return `<div class="hero"><div class="tagline">TALENT SIGNAL → HUMAN DECISION → ACTION</div><h2>让每一次项目实践，都成为下一次人才配置的依据。</h2><p>针对MMO策划岗位与项目阶段，持续沉淀可追溯证据；盘点结论由业务和HRBP共同校准，最终服务于新项目组队、人才培养与关键岗位备份。</p><button class="button" data-view="matching">开始新项目组队 →</button></div>
   <div class="grid kpis">
    <div class="card metric-card"><span class="metric-icon">◫</span><div class="label">当前盘点人数</div><div class="value">${state.people.length}</div><div class="hint">覆盖 ${roleCounts.length} 类策划岗位</div></div>
@@ -92,6 +95,7 @@ function renderOverview(){
    <div class="surface section-space"><strong>组队判断提示</strong><p>新项目抽调人选时，同时检查原项目对应岗位是否有备份。人数只是容量信号，还需打开档案核对能力与意愿。</p></div></div>
   <div class="card"><div class="card-head"><div><h2>待处理的连续信号</h2><div class="sub">来自方案评审、原型测试和版本复盘</div></div>${btn('进入信号台','go-signals','small ghost')}</div>
    ${unconfirmed.slice(0,4).map(e=>`<div class="signal"><div class="signal-icon">✦</div><div><div class="signal-title">${esc(person(e.personId)?.name||'未知')} · ${esc(e.title)}</div><div class="signal-summary">${esc(e.summary)}</div><div class="signal-meta">${esc(e.eventType)} · ${fmt(e.date)} · 待确认</div></div></div>`).join('') || '<div class="empty">暂无待确认信号</div>'}</div></div>
+  <div class="grid equal section-space"><div class="card"><div class="card-head"><div><h2>传统盘点视角 · 九宫格</h2><div class="sub">模拟的绩效 × 潜力对照，仅作为讨论入口</div></div></div><div class="ninebox">${boxes.flatMap((row,ri)=>row.map((cell,ci)=>`<div class="ninecell ${ri===0&&ci===2?'highlight':''}"><small>${['高','中','低'][ri]}潜力 · ${['低','中','高'][ci]}绩效</small><div>${cell.map(p=>`<button data-person="${esc(p.id)}">${esc(p.name)}</button>`).join('')||'<span class="tiny">—</span>'}</div></div>`)).join('')}</div><p class="callout section-space">此处按六项模拟评分映射九宫格；“潜力”必须指向具体目标岗位，最终应打开个人档案核对证据、意愿和项目情境。</p></div><div class="card"><h2>从半年盘点到连续追踪</h2><div class="step-list section-space"><div class="step"><span class="step-n">旧</span><div><strong>半年一次集中回忆</strong><p>贡献容易散落在版本复盘、评审和主管记忆里。</p></div></div><div class="step"><span class="step-n">新</span><div><strong>关键事件即留下证据</strong><p>只新增变化，不要求主管反复填写全员大表。</p></div></div><div class="step"><span class="step-n">审</span><div><strong>定期人工校准</strong><p>先确认事实，再判断适配，最后落到行动。</p></div></div></div></div></div>
   <div class="card section-space"><div class="card-head"><div><h2>持续盘点如何运行</h2><div class="sub">更新事实与校准判断采用不同频率</div></div></div><div class="flow"><span>关键事件轻记录</span><i>→</i><span>主管确认事实</span><i>→</i><span>月度关注变化</span><i>→</i><span>季度或组队前校准</span><i>→</i><span>人才行动回写</span></div></div>`;
 }
 
@@ -149,7 +153,7 @@ function renderReport(){
  <h3>04 · 已建立的人才行动</h3>${state.actions.length?`<div class="table-wrap"><table><thead><tr><th>行动</th><th>人员</th><th>负责人</th><th>到期</th><th>状态</th></tr></thead><tbody>${state.actions.map(a=>`<tr><td>${esc(a.title)}</td><td>${esc(person(a.personId)?.name||'—')}</td><td>${esc(a.owner)}</td><td>${esc(a.due)}</td><td>${esc(a.status)}</td></tr>`).join('')}</tbody></table></div>`:'<p>暂无行动，请在组队页建立验证任务。</p>'}
  ${aiText?`<h3>05 · AI辅助撰写的讨论提纲</h3><p>${esc(aiText).replace(/\n/g,'<br>')}</p><p class="tiny">AI文本需HRBP和业务负责人核实，不自动改变人员评分。</p>`:''}
  <div class="note section-space">证据由项目事件持续更新；人员判断在月度关注与季度/组队前校准。模拟数据不代表网易内部事实。</div></article>
- <div class="card section-space"><div class="card-head"><div><h2>可选：DeepSeek辅助生成讨论提纲</h2><div class="sub">只发送当前报告摘要；结果不修改评分或行动</div></div></div><div class="form-grid"><div class="field"><label>API Key（仅当前页面会话，不写入本地存储或仓库）</label><input class="input" type="password" id="deepseekKey" placeholder="sk-..." autocomplete="off" /></div><div class="field"><label>模型</label><select class="select" id="deepseekModel"><option value="deepseek-chat">deepseek-chat</option><option value="deepseek-reasoner">deepseek-reasoner</option></select></div></div><div class="button-row section-space"><button class="button" id="runAi">生成讨论提纲</button><span class="callout" id="aiStatus">浏览器直连API；如跨域被限制，仍可使用本地诊断报告。</span></div></div>`;
+ <div class="card section-space"><div class="card-head"><div><h2>可选：DeepSeek辅助生成讨论提纲</h2><div class="sub">只发送当前报告摘要；结果不修改评分或行动</div></div></div><div class="form-grid"><div class="field"><label>API Key（仅当前页面会话，不写入本地存储或仓库）</label><input class="input" type="password" id="deepseekKey" placeholder="sk-..." autocomplete="off" /></div><div class="field"><label>模型</label><select class="select" id="deepseekModel"><option value="deepseek-flash">deepseek-flash</option><option value="deepseek-v4-pro">deepseek-v4-pro</option></select></div></div><div class="button-row section-space"><button class="button" id="runAi">生成讨论提纲</button><span class="callout" id="aiStatus">仅发送模拟报告摘要到DeepSeek；最终文字需人工核验。</span></div></div>`;
 }
 
 function renderSettings(){
