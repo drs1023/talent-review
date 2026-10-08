@@ -1,4 +1,5 @@
 import { createDemoState, dimensions, roleProfiles } from './data.js';
+import { readMeetingFile, localExtractSignals, normaliseAiSignals } from './meeting.js';
 
 const STORE = 'mmo-talent-compass-v1';
 const app = document.querySelector('#app');
@@ -15,6 +16,7 @@ let selectedCandidate = null;
 let filterRole = '全部岗位';
 let filterQuery = '';
 let toastTimer;
+let meetingImport={fileName:'',text:'',personId:state.selectedPersonId||state.people[0]?.id||'',candidates:[],status:'等待上传会议纪要',model:'deepseek-flash',mode:'local'};
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const num = value => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -117,10 +119,22 @@ function renderProfile(p){
 function renderSignals(){
  const pending=state.evidence.filter(e=>!confirmed(e)).sort((a,b)=>b.date.localeCompare(a.date));
  const recent=state.evidence.filter(e=>age(e.date)<=30);
- return `<div class="grid kpis"><div class="card metric-card"><div class="label">30天内关键事件</div><div class="value">${recent.length}</div><div class="hint">随项目节奏发生</div></div><div class="card metric-card"><div class="label">待主管确认</div><div class="value amber">${pending.length}</div><div class="hint">未确认不改变人才判断</div></div><div class="card metric-card"><div class="label">已核实证据</div><div class="value accent">${state.evidence.filter(confirmed).length}</div><div class="hint">保留来源与日期</div></div><div class="card metric-card"><div class="label">证据覆盖人数</div><div class="value">${new Set(state.evidence.map(e=>e.personId)).size}</div><div class="hint">${state.people.length} 人中已有记录</div></div></div>
+ return `${renderMeetingImporter()}<div class="grid kpis"><div class="card metric-card"><div class="label">30天内关键事件</div><div class="value">${recent.length}</div><div class="hint">随项目节奏发生</div></div><div class="card metric-card"><div class="label">待主管确认</div><div class="value amber">${pending.length}</div><div class="hint">未确认不改变人才判断</div></div><div class="card metric-card"><div class="label">已核实证据</div><div class="value accent">${state.evidence.filter(confirmed).length}</div><div class="hint">保留来源与日期</div></div><div class="card metric-card"><div class="label">证据覆盖人数</div><div class="value">${new Set(state.evidence.map(e=>e.personId)).size}</div><div class="hint">${state.people.length} 人中已有记录</div></div></div>
  <div class="grid two"><div class="card"><div class="card-head"><div><h2>待确认信号</h2><div class="sub">主管只处理发生变化的记录</div></div>${btn('记录新事件','add-evidence','small')}</div>
  ${pending.map(e=>`<div class="signal"><div class="signal-icon">✦</div><div style="flex:1"><div class="signal-title">${esc(person(e.personId)?.name||'未知')} · ${esc(e.title)}</div><div class="signal-summary">${esc(e.summary)}</div><div class="signal-meta">${fmt(e.date)} · ${esc(e.eventType)} · 来源：${esc(e.source)}</div><div class="button-row section-space"><button class="button small" data-confirm="${esc(e.id)}">确认事实</button><button class="button small ghost" data-open-evidence="${esc(e.id)}">查看完整记录</button></div></div></div>`).join('')||'<div class="empty">所有信号已处理</div>'}</div>
  <div class="stack"><div class="card"><h2>轻量更新机制</h2><div class="step-list section-space"><div class="step"><span class="step-n">1</span><div><strong>关键事件后留一张卡</strong><p>任务、本人贡献、结果、来源四个信息即可。</p></div></div><div class="step"><span class="step-n">2</span><div><strong>主管每月处理待确认</strong><p>只看新事件、过期证据和行动到期项。</p></div></div><div class="step"><span class="step-n">3</span><div><strong>季度或组队前做校准</strong><p>区分事实更新和人才判断，保留分歧记录。</p></div></div></div></div><div class="card"><h2>记录质量提醒</h2><div class="insight-list section-space"><div class="insight"><span class="dot red"></span><span>证据缺失表示“尚未验证”，不能解释为能力不足。</span></div><div class="insight"><span class="dot"></span><span>版本指标受多人与外部因素影响，不直接等同个人绩效。</span></div><div class="insight"><span class="dot green"></span><span>AI可整理材料；人员评价和机会分配由人负责。</span></div></div></div></div></div>`;
+}
+
+function renderMeetingImporter(){
+ const p=person(meetingImport.personId)||state.people[0];
+ const candidates=meetingImport.candidates||[];
+ return `<div class="card meeting-import"><div class="card-head"><div><div class="tagline-red">MEETING → SIGNAL</div><h2>上传沟通纪要，生成候选能力信号</h2><div class="sub">文件先在浏览器本地提取文字；候选信号经人工确认后才进入人才档案。</div></div>${pill('不自动评分','gray')}</div>
+ <div class="form-grid three"><div class="field"><label>谈话对象</label><select class="select" id="meetingPerson">${state.people.map(x=>`<option value="${esc(x.id)}" ${x.id===p?.id?'selected':''}>${esc(x.name)} · ${esc(x.role)}</option>`).join('')}</select></div><div class="field wide-file"><label>会议纪要文件</label><input class="input file-input" id="meetingFile" type="file" accept=".txt,.md,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" /></div></div><div class="button-row section-space"><a class="button small ghost" href="sample-data/叶知行_一对一沟通纪要_模拟.txt" download>下载测试纪要 TXT</a><span class="tiny">支持 TXT、Markdown、Word .docx；暂不支持旧版 .doc。</span></div>
+ <div class="meeting-flow section-space"><span>01 上传 TXT / MD / DOCX</span><i>→</i><span>02 提取原文</span><i>→</i><span>03 生成候选信号</span><i>→</i><span>04 人工确认入档</span></div>
+ <div class="note section-space"><strong>${esc(meetingImport.status)}</strong>${meetingImport.fileName?`<br>文件：${esc(meetingImport.fileName)} · 已提取 ${meetingImport.text.length} 个字符 · 当前对象：${esc(p?.name||'未选择')}`:''}</div>
+ ${meetingImport.text?`<details class="source-preview section-space"><summary>查看提取的纪要原文</summary><p>${esc(meetingImport.text.slice(0,1400)).replace(/\n/g,'<br>')}${meetingImport.text.length>1400?'…':''}</p></details>
+ <div class="ai-panel section-space"><div class="form-grid three"><div class="field"><label>DeepSeek API Key（可选）</label><input class="input" id="meetingDeepseekKey" type="password" placeholder="${deepseekKey?'当前会话已填写':'sk-...'}" autocomplete="off" /></div><div class="field"><label>模型</label><select class="select" id="meetingDeepseekModel"><option value="deepseek-flash" ${meetingImport.model==='deepseek-flash'?'selected':''}>deepseek-flash</option><option value="deepseek-v4-pro" ${meetingImport.model==='deepseek-v4-pro'?'selected':''}>deepseek-v4-pro</option></select></div><div class="field action-field"><label>解析方式</label><button class="button" data-action="analyse-meeting-ai">DeepSeek 深度解析</button></div></div><p class="tiny">本地规则解析不会上传文件。点击 DeepSeek 解析后，提取出的纪要文字会发送给 DeepSeek；真实材料请先匿名化并确认授权。Key 不写入本地存储。</p></div>`:''}
+ ${candidates.length?`<div class="draft-head section-space"><div><h3>候选信号 · ${candidates.length} 条</h3><p>请核对贡献归属、上下文和能力维度。可编辑后再入档。</p></div><div class="button-row"><button class="button small ghost" data-action="clear-meeting-import">清空</button><button class="button small" data-action="import-meeting-signals">将选中项加入待确认</button></div></div><div class="draft-grid">${candidates.map((x,i)=>`<div class="draft-card ${x.selected?'selected':''}"><label class="check-line"><input type="checkbox" data-draft-select="${i}" ${x.selected?'checked':''}/> 选入待确认队列</label><div class="form-grid section-space"><div class="field"><label>候选标题</label><input class="input" data-draft-title="${i}" value="${esc(x.title)}" maxlength="80" /></div><div class="field"><label>对应能力</label><select class="select" data-draft-dimension="${i}">${options(dimensions.map(d=>d.name),x.dimension)}</select></div><div class="field wide"><label>事实摘要</label><textarea class="textarea compact" data-draft-summary="${i}" maxlength="500">${esc(x.summary)}</textarea></div></div><div class="draft-meta">${pill(x.confidence+'置信线索',x.confidence==='低'?'amber':'')} <span>${esc(x.reason)}</span></div>${x.quote?`<blockquote>原文：${esc(x.quote)}</blockquote>`:''}</div>`).join('')}</div>`:meetingImport.text?'<div class="empty">未识别到明确候选信号。可尝试 DeepSeek 深度解析，或继续使用“记录新事件”。</div>':''}</div>`;
 }
 
 function renderMatching(){
@@ -214,6 +228,47 @@ function importCsv(file){
   }else throw Error('未识别模板列名。请先下载人员或证据模板。');
  }).catch(error=>showModal(`<h2>导入未完成</h2><p>${esc(error.message)}</p><div class="modal-actions"><button class="button" data-action="close-modal">返回修改</button></div>`));
 }
+async function importMeetingFile(file){
+ const nameMatches=state.people.filter(p=>file.name.includes(p.name));
+ const matchedPerson=nameMatches.length===1?nameMatches[0]:null;
+ if(matchedPerson)meetingImport.personId=matchedPerson.id;
+ meetingImport.status=matchedPerson?`已从文件名识别谈话对象：${matchedPerson.name}；正在提取文字…`:'正在提取文件文字…';meetingImport.fileName=file.name;meetingImport.candidates=[];render();
+ try{
+  meetingImport.text=await readMeetingFile(file);
+  meetingImport.candidates=localExtractSignals(meetingImport.text);
+  meetingImport.mode='local';
+  const attribution=matchedPerson?`，已匹配谈话对象 ${matchedPerson.name}`:'；请确认谈话对象';
+  meetingImport.status=meetingImport.candidates.length?`本地快速解析完成，发现 ${meetingImport.candidates.length} 条候选信号${attribution}`:`文字提取完成，但本地规则未识别到明确能力信号${attribution}`;
+  render();toast(`已读取 ${file.name}`);
+ }catch(error){meetingImport={...meetingImport,text:'',candidates:[],status:`解析失败：${error.message}`};render();}
+}
+async function analyseMeetingWithAi(){
+ const input=document.querySelector('#meetingDeepseekKey');
+ deepseekKey=input?.value.trim()||deepseekKey;
+ meetingImport.model=document.querySelector('#meetingDeepseekModel')?.value||meetingImport.model;
+ if(!meetingImport.text){toast('请先上传会议纪要');return;}
+ if(!meetingImport.personId){toast('请先选择谈话对象');return;}
+ if(!deepseekKey){toast('请先输入DeepSeek API Key');return;}
+ const target=person(meetingImport.personId);
+ meetingImport.status='DeepSeek 正在梳理候选信号…';render();
+ try{
+  const allowed=dimensions.map(d=>d.name);
+  const response=await fetch('https://api.deepseek.com/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${deepseekKey}`},body:JSON.stringify({model:meetingImport.model,response_format:{type:'json_object'},messages:[{role:'system',content:`你是HRBP证据整理助手。只提取纪要中与指定员工直接相关、可追溯的行为事实，不做绩效定级、晋升或去留判断，不补充原文没有的信息。能力维度只能取：${allowed.join('、')}。输出JSON对象：{"signals":[{"title":"不超过30字","summary":"本人承担什么及可观察结果","dimension":"允许的维度","evidence_quote":"支持判断的原文短句","confidence":"高/中/低","reason":"为何映射到该能力及待核验点"}]}。最多6条；证据不足时返回空数组。`},{role:'user',content:`谈话对象：${target?.name||meetingImport.personId}\n文件名：${meetingImport.fileName}\n会议纪要：\n${meetingImport.text}`}],max_tokens:1600,stream:false})});
+  if(!response.ok)throw Error(`API返回 ${response.status}`);
+  const json=await response.json();
+  const content=json.choices?.[0]?.message?.content?.trim();if(!content)throw Error('API未返回可用内容');
+  meetingImport.candidates=normaliseAiSignals(JSON.parse(content),allowed);
+  meetingImport.mode='ai';meetingImport.status=`DeepSeek 解析完成，生成 ${meetingImport.candidates.length} 条候选信号；请逐条人工核验`;
+  render();toast('AI候选信号已生成，尚未写入档案');
+ }catch(error){meetingImport.status=`AI解析失败：${error.message}。仍可使用本地候选信号或手动记录。`;render();}
+}
+function commitMeetingSignals(){
+ const rows=(meetingImport.candidates||[]).filter(x=>x.selected&&x.title.trim()&&x.summary.trim());
+ if(!rows.length){toast('请至少选择一条有效候选信号');return;}
+ const stamp=Date.now();
+ rows.forEach((x,i)=>state.evidence.push({id:'M'+stamp+i,personId:meetingImport.personId,title:x.title.trim(),eventType:'沟通纪要',summary:x.summary.trim(),dimension:x.dimension,date:today(),status:'待确认',source:`${meetingImport.fileName} · ${meetingImport.mode==='ai'?'AI辅助抽取':'本地规则抽取'}`}));
+ persist();meetingImport={fileName:'',text:'',personId:meetingImport.personId,candidates:[],status:`已加入 ${rows.length} 条待确认信号`,model:meetingImport.model,mode:'local'};render();toast(`已加入 ${rows.length} 条待确认信号`);
+}
 async function runAi(){
  const input=document.querySelector('#deepseekKey');const status=document.querySelector('#aiStatus');const button=document.querySelector('#runAi');
  deepseekKey=input?.value.trim()||deepseekKey;
@@ -242,6 +297,9 @@ document.addEventListener('click',event=>{
   else if(action==='add-person')addPersonForm();
   else if(action==='create-action')actionForm();
   else if(action==='calibrate-person')calibrationForm();
+  else if(action==='analyse-meeting-ai')analyseMeetingWithAi();
+  else if(action==='import-meeting-signals')commitMeetingSignals();
+  else if(action==='clear-meeting-import'){meetingImport={fileName:'',text:'',personId:meetingImport.personId,candidates:[],status:'等待上传会议纪要',model:meetingImport.model,mode:'local'};render();}
   else if(action==='view-candidate'){state.selectedPersonId=selectedCandidate||state.people[0]?.id;persist();setView('people');}
   else if(action==='close-modal')closeModal();
   else if(action==='reset-weights'){state.config.weights=roleWeights(state.config.targetRole,state.config.stage);persist();render();toast('已恢复建议权重');}
@@ -249,7 +307,7 @@ document.addEventListener('click',event=>{
   else if(action==='template-evidence')csvDownload('证据导入模板.csv',evidenceHeaders,[{person_id:'P01',title:'示例方案评审',event_type:'方案评审',summary:'描述本人贡献、结果及需要核验的部分',dimension:'专业设计',date:today(),status:'待确认',source:'方案文档'}]);
   else if(action==='export-data'){const blob=new Blob([JSON.stringify({...state,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='mmo-talent-compass-data.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   else if(action==='reset-demo')showModal(`<h2>恢复模拟数据？</h2><p>这会覆盖当前浏览器里录入、导入和确认过的演示数据。建议先导出备份。</p><div class="modal-actions"><button class="button ghost" data-action="close-modal">取消</button><button class="button warn" data-action="confirm-reset">恢复</button></div>`);
-  else if(action==='confirm-reset'){state=createDemoState();selectedCandidate=null;matchRole=state.config.targetRole;matchStage=state.config.stage;persist();closeModal();render();toast('已恢复模拟数据');}
+  else if(action==='confirm-reset'){state=createDemoState();selectedCandidate=null;matchRole=state.config.targetRole;matchStage=state.config.stage;meetingImport={fileName:'',text:'',personId:state.selectedPersonId||state.people[0]?.id||'',candidates:[],status:'等待上传会议纪要',model:'deepseek-flash',mode:'local'};persist();closeModal();render();toast('已恢复模拟数据');}
   else if(action==='copy-report')navigator.clipboard.writeText(reportText()).then(()=>toast('报告摘要已复制')).catch(()=>toast('浏览器未允许复制'));
   else if(action==='print-report')window.print();
   return;
@@ -263,10 +321,17 @@ document.addEventListener('change',event=>{
  if(id==='matchRole'||id==='matchStage'){matchRole=document.querySelector('#matchRole')?.value||matchRole;matchStage=document.querySelector('#matchStage')?.value||matchStage;selectedCandidate=null;render();}
  if(id==='configRole'||id==='configStage'){state.config.targetRole=document.querySelector('#configRole')?.value||state.config.targetRole;state.config.stage=document.querySelector('#configStage')?.value||state.config.stage;state.config.weights=roleWeights(state.config.targetRole,state.config.stage);matchRole=state.config.targetRole;matchStage=state.config.stage;persist();render();}
  if(id==='csvUpload'&&event.target.files[0])importCsv(event.target.files[0]);
+ if(id==='meetingFile'&&event.target.files[0])importMeetingFile(event.target.files[0]);
+ if(id==='meetingPerson'){meetingImport.personId=event.target.value;render();}
+ if(id==='meetingDeepseekModel')meetingImport.model=event.target.value;
+ if(event.target.matches('[data-draft-select]')){const item=meetingImport.candidates[Number(event.target.dataset.draftSelect)];if(item)item.selected=event.target.checked;}
+ if(event.target.matches('[data-draft-dimension]')){const item=meetingImport.candidates[Number(event.target.dataset.draftDimension)];if(item)item.dimension=event.target.value;}
 });
 document.addEventListener('input',event=>{
  if(event.target.id==='peopleSearch'){filterQuery=event.target.value;const pos=event.target.selectionStart;render();const input=document.querySelector('#peopleSearch');input?.focus();input?.setSelectionRange(pos,pos);}
  if(event.target.matches('[data-weight]')){const id=event.target.dataset.weight;state.config.weights[id]=Number(event.target.value);event.target.nextElementSibling.textContent=event.target.value;persist();}
+ if(event.target.matches('[data-draft-title]')){const item=meetingImport.candidates[Number(event.target.dataset.draftTitle)];if(item)item.title=event.target.value;}
+ if(event.target.matches('[data-draft-summary]')){const item=meetingImport.candidates[Number(event.target.dataset.draftSummary)];if(item)item.summary=event.target.value;}
 });
 document.addEventListener('submit',event=>{
  if(event.target.id==='evidenceForm'){event.preventDefault();const d=Object.fromEntries(new FormData(event.target));state.evidence.push({id:'E'+Date.now(),personId:d.personId,title:d.title,eventType:d.eventType,summary:d.summary,dimension:d.dimension,date:d.date,status:'待确认',source:d.source});persist();closeModal();render();toast('新事件已加入待确认队列');}

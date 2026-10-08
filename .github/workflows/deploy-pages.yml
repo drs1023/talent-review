@@ -30,6 +30,7 @@ jobs:
           mkdir site
           cp index.html styles.css .nojekyll site/
           cp -r src site/src
+          cp -r assets site/assets
           cp -r sample-data site/sample-data
           mkdir -p site/presentation/assets
           cp presentation/index.html site/presentation/index.html
