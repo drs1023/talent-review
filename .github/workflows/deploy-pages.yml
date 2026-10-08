@@ -34,6 +34,7 @@ jobs:
           cp -r sample-data site/sample-data
           mkdir -p site/presentation/assets
           cp presentation/index.html site/presentation/index.html
+          cp presentation/editable.html site/presentation/editable.html
           cp presentation/assets/motion.min.js site/presentation/assets/motion.min.js
           cp -r presentation/images site/presentation/images
       - name: Upload site

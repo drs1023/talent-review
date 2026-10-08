@@ -1188,6 +1188,16 @@
   #hint{top:1.3vh;bottom:auto;left:50%;right:auto;transform:translateX(-50%);font-size:11px;opacity:.58}
   body.dark-bg #hint{color:#fff}
 </style>
+
+<style id="editable-mode-style">
+  #editToolbar{position:fixed;right:18px;top:18px;z-index:9999;display:flex;gap:8px;align-items:center;padding:9px;background:#171717;border:1px solid #ffffff2f;box-shadow:0 8px 30px #0004;font:13px/1.2 system-ui,-apple-system,"Microsoft YaHei",sans-serif}
+  #editToolbar button{border:0;padding:9px 12px;cursor:pointer;background:#fff;color:#171717;font:inherit}
+  #editToolbar button.primary{background:#D12020;color:#fff;font-weight:700}
+  #editToolbar .edit-tip{color:#ddd;max-width:230px}
+  body.editing #deck :is(h1,h2,h3,p,li,[data-edit-text]){outline:1px dashed #D12020;outline-offset:3px;cursor:text}
+  body.editing #deck :is(h1,h2,h3,p,li,[data-edit-text]):focus{outline:3px solid #D12020;background:#fff8e8;color:#171717}
+  @media print{#editToolbar{display:none!important}}
+</style>
 </head>
 <body class="canvas-mode">
 <script>
@@ -1228,6 +1238,12 @@
   <button id="ppt-presenter-btn" type="button"><span class="ppt-key">P</span>演讲模式</button>
 </div>
 
+
+<div id="editToolbar" role="region" aria-label="演示文稿文字编辑工具栏">
+  <button id="toggleEdit" class="primary" type="button">开始编辑文字</button>
+  <button id="exportHtml" type="button">导出当前 HTML</button>
+  <span class="edit-tip">点击文字即可修改；完成后请导出保存。</span>
+</div>
 <div id="deck">
 <section class="slide accent" data-layout="S01" data-animate="hero" data-slide-id="cover">
   <div class="canvas-card"><div class="chrome-min"><div class="l">网易星火人力管培生 · 命题四</div><div class="r">01 / 11</div></div><div style="flex:1;display:grid;grid-template-rows:auto 1fr auto;gap:2.6vh"><div class="t-meta" data-anim="kicker" style="color:#ffe1df">面试作业 · 网页原型与方案汇报</div><h1 data-anim="title" data-edit-text style="align-self:start;padding-top:7vh;font-size:min(7.3vw,12.5vh);font-weight:200;line-height:1.13;letter-spacing:-.035em;color:#fff">网易 MMO 策划<br>人才盘点</h1><div data-anim="bottom" style="border-top:1px solid #ffffff6b;padding-top:2.4vh;display:flex;align-items:end;justify-content:space-between;gap:3vw"><p class="lead" data-edit-text style="max-width:45ch;color:#fff">让人才判断跟上项目节奏，而不是等到半年后再回忆。</p><span class="t-meta" data-edit-text style="color:#ffdfdc">网页原型 · 全部数据均为虚构模拟</span></div></div></div>
@@ -2865,6 +2881,30 @@ if(motion){
   }
   addEventListener('swiss-low-power-change', e=>{e.detail.on ? stop() : start();});
   start();
+})();
+</script>
+
+<script id="editable-mode-script">
+(() => {
+  const selector = '#deck h1,#deck h2,#deck h3,#deck p,#deck li,#deck [data-edit-text]';
+  const toggle = document.getElementById('toggleEdit');
+  const setEditing = (enabled) => {
+    document.body.classList.toggle('editing', enabled);
+    document.querySelectorAll(selector).forEach((el) => el.setAttribute('contenteditable', enabled ? 'true' : 'false'));
+    toggle.textContent = enabled ? '完成编辑' : '开始编辑文字';
+  };
+  toggle.addEventListener('click', () => setEditing(!document.body.classList.contains('editing')));
+  document.getElementById('exportHtml').addEventListener('click', () => {
+    setEditing(false);
+    const source = '<!doctype html>\n' + document.documentElement.outerHTML;
+    const blob = new Blob([source], {type:'text/html;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '网易MMO策划人才盘点_修改版.html';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
 })();
 </script>
 </body>
