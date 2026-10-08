@@ -4,3 +4,55 @@
 @media(max-width:700px){.app-shell{display:block}.sidebar{position:static;width:100%;height:auto;padding:13px}.brand{padding:0 4px 9px}.sidebar nav{display:flex;overflow:auto;margin:0 0 5px}.side-label,.sidebar-bottom{display:none}.nav-item{white-space:nowrap;padding:9px;font-size:11px}.main{padding:20px 13px}.topbar{display:block}.top-actions{margin:12px 0 0}.topbar h1{font-size:25px}.grid.kpis,.grid.equal,.form-grid,.form-grid.three{grid-template-columns:1fr 1fr}.hero{padding:22px}.hero h2{font-size:20px}.card{padding:15px}.report-sheet{padding:18px}}
 @media print{.sidebar,.topbar,.page-controls,footer,#toast{display:none!important}.main{padding:0!important}.report-sheet{border:0;box-shadow:none;padding:0}.app-shell{display:block}body{background:white}}
 .ninebox{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.ninecell{min-height:77px;background:#f3f7f6;border:1px solid #e3ece8;border-radius:8px;padding:8px}.ninecell.highlight{background:#e4f4ea;border-color:#aadbc0}.ninecell small{display:block;color:#84969b;font-size:9px;margin-bottom:6px}.ninecell button{border:0;background:#fff;color:#346a5c;font-size:10px;padding:3px 6px;border-radius:5px;margin:2px;box-shadow:0 1px 4px #204d4214}.ninecell button:hover{background:#d9eee4}
+
+/* 面试原型的网易红视觉：品牌启发式配色，并非网易官方设计系统。 */
+:root{--netease-red:#d12020;--red-deep:#ad1719;--red-soft:#fff0ef;--ink:#232323;--muted:#737373;--line:#e7e4e2;color:var(--ink);background:#f7f7f6}
+body{background:#f7f7f6}
+.sidebar{background:#fff;color:var(--ink);border-right:1px solid var(--line);border-top:5px solid var(--netease-red)}
+.brand{border-bottom:1px solid var(--line);margin-bottom:20px;padding-bottom:25px}
+.brand-mark{width:35px;height:35px;display:grid;place-items:center;background:var(--netease-red);color:#fff;border-radius:7px;font-size:23px;font-weight:800;font-family:Arial,sans-serif}
+.brand strong{color:#252525}.brand small,.side-label{color:#94908e}
+.nav-item{color:#6f6d6c;border-radius:7px}.nav-item span{color:#a19b98}
+.nav-item:hover{background:#faf2f1;color:var(--red-deep)}
+.nav-item.active{background:var(--red-soft);color:var(--red-deep);font-weight:700}
+.nav-item.active span{color:var(--netease-red)}
+.sidebar-bottom{border-top:1px solid var(--line);color:#625f5e}.sidebar-bottom small{color:#9b9693}
+.live-dot{background:var(--netease-red);box-shadow:0 0 0 4px #f8dedc}
+.eyebrow,.report-kicker{color:var(--netease-red)}
+.topbar h1,.card h2,.card h3,.person-name{color:var(--ink)}
+.topbar p,.callout{color:#77716e}
+.demo-badge{background:var(--red-soft);border-color:#f1cfcc;color:var(--red-deep)}
+.button{background:var(--netease-red);box-shadow:none;border-radius:7px}
+.button{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.button:hover{background:var(--red-deep)}
+.button.ghost{color:#5e5653;border-color:#dedad7}.button.ghost:hover{background:#faf2f1}
+.button.dark{background:#2b2726}.button.warn{background:#fff0ef;color:var(--red-deep)}
+.card,.report-sheet{border-color:var(--line);border-radius:10px;box-shadow:none}
+.hero{background:var(--netease-red);border-radius:11px}.hero:after{content:none}.hero p{color:#ffe4e2}.hero .tagline{color:#ffcfca}.hero .button{background:#fff;color:var(--red-deep)}
+.accent,.score,.score-lg{color:var(--netease-red)}
+.metric-card .metric-icon{color:#e6b7b2}
+.pill{background:var(--red-soft);color:var(--red-deep)}
+.pill.blue{background:#f1f0ef;color:#696462}
+.bar-track>span{background:var(--netease-red)}
+.bar-track.blue>span{background:#7a716e}
+.bar-track.amber>span{background:#bd8476}
+.surface{background:#faf9f8;border-color:var(--line)}
+.signal-icon{background:var(--red-soft);color:var(--netease-red)}
+.input,.select,.textarea{border-color:#ddd8d5;border-radius:7px}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--netease-red);box-shadow:0 0 0 3px #d120201a}
+.avatar{background:var(--netease-red);border-radius:9px}
+.note{background:#fff5f4;border-left-color:var(--netease-red);color:#75514c}
+.insight .dot.green{background:var(--netease-red)}
+.candidate{border-color:var(--line);border-radius:8px}.candidate.selected{border-color:#df8f88;background:#fff6f5}
+.tab.active{color:var(--red-deep);box-shadow:none}
+.step-n{background:var(--red-soft);color:var(--netease-red)}
+.upload-box{border-color:#dcb4b0;background:#fff9f8}
+.config-row input[type=range],.check-line input{accent-color:var(--netease-red)}
+.flow span{background:var(--red-soft);color:var(--red-deep)}
+#toast{background:#2c2523;box-shadow:0 8px 25px #2c252330}
+.ninecell{background:#faf9f8;border-color:var(--line)}
+.ninecell.highlight{background:#fff0ef;border-color:#e3a9a3}
+.ninecell button{color:var(--red-deep);box-shadow:none;border:1px solid #eee1df}
+.ninecell button:hover{background:#ffe9e7}
+tr.clickable:hover{background:#fff7f6}
+@media(max-width:700px){.sidebar{border-top:4px solid var(--netease-red);border-right:0;border-bottom:1px solid var(--line)}.brand{margin:0;padding-bottom:10px;border:0}}

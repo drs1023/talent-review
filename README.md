@@ -14,7 +14,7 @@
 
 网页是纯静态站点，数据保存在访问者的浏览器 `localStorage` 中；不同访问者之间不会共享数据。DeepSeek Key 仅保留在当前页面内存，不写入仓库或浏览器存储。已用目标 GitHub Pages 来源测试 DeepSeek API 的跨域预检通过；实际生成仍需在部署完成后用用户提供的 Key 试跑。
 
-六页汇报材料：[网易MMO策划人才盘点_面试汇报.pptx](output/网易MMO策划人才盘点_面试汇报.pptx)。封面使用 AI 生成的原创概念插画；演示数据和岗位画像均为面试方案，不代表网易内部事实。
+七页网页版汇报：[打开演示文稿](presentation/index.html)，支持左右键翻页、总览和演讲者视图。采用简洁网格排版与网易红启发式配色；不使用封面插画。演示数据和岗位画像均为面试方案，不代表网易内部事实。红色 `#D12020` 是本原型的近似视觉选择，不宣称为官方品牌规范色值。
 
 ## 本地预览
 
@@ -28,7 +28,7 @@ node server.mjs
 
 ## GitHub Pages
 
-仓库包含 `.github/workflows/deploy-pages.yml`。推送到 `main` 或 `master` 后，在仓库 Settings → Pages 中选择 **GitHub Actions** 为发布源。部署成功后，页面地址通常为 `https://<用户名>.github.io/<仓库名>/`。
+仓库包含 `.github/workflows/deploy-pages.yml`。Pages 发布源选择 **GitHub Actions** 后，推送到 `main` 会同步发布系统首页及 `/presentation/` 网页汇报。
 
 ## CSV 模板
 
