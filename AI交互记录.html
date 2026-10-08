@@ -1,0 +1,124 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI交互记录｜网易MMO策划人才盘点</title><style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+:root{--red:#d12020;--ink:#24201f;--muted:#736d69;--line:#e7e2df;--paper:#fff}*{box-sizing:border-box}body{margin:0;background:#f5f3f2;color:var(--ink);font:16px/1.75 Inter,'Noto Sans SC',sans-serif}main{width:min(1080px,calc(100% - 40px));margin:28px auto 80px;background:var(--paper);border-top:8px solid var(--red);padding:54px 66px}h1{font-size:42px;line-height:1.15;margin:0 0 30px;letter-spacing:-.04em}h2{font-size:25px;margin:52px 0 18px;padding-top:12px;border-top:1px solid var(--line)}h3{font-size:18px;margin-top:30px;color:var(--red)}p,li{color:#4d4744}blockquote{margin:20px 0;padding:14px 18px;border-left:4px solid var(--red);background:#fff3f2}table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:12px 10px;border:1px solid var(--line);vertical-align:top;text-align:left}th{background:#f7f4f3;color:var(--red)}code,pre{font-family:ui-monospace,Consolas,monospace}pre{background:#282321;color:#fff;padding:20px;overflow:auto}img{display:block;max-width:100%;margin:18px auto;border:1px solid var(--line)}a{color:var(--red)}@media(max-width:700px){main{width:100%;margin:0;padding:32px 20px}h1{font-size:32px}table{display:block;overflow:auto}}@media print{body{background:#fff}main{width:100%;margin:0;border-top:5px solid var(--red);padding:24px 34px}h2{break-after:avoid}img,table,pre{break-inside:avoid}}
+</style></head><body><main><h1>AI 交互记录｜网易 MMO 策划人才盘点（面试方案）</h1>
+<blockquote>
+<p>用途：作为作业四的附加材料，说明关键 prompt、使用的 skill / 工作流，以及候选人如何保留判断、核验 AI 输出并完成交付。本文只摘录关键节点，不等同于完整对话导出。</p>
+</blockquote>
+<h2>1. 使用 AI 的目标与边界</h2>
+<ul>
+<li>目标：在限时作业中，把一个 HR 场景命题转化为可交互网页、网页演示文稿和答辩材料。</li>
+<li>AI 承担：资料检索、结构发散、前端代码辅助、模拟数据构造、版式生成、检查清单与测试。</li>
+<li>候选人承担：问题定义、业务取舍、功能优先级、品牌语境、AI 使用边界、最终内容核验。</li>
+<li>数据边界：系统内姓名、项目名、事件和指标均为虚构模拟，不代表网易内部情况；未向模型上传真实员工信息。</li>
+</ul>
+<h2>2. 关键交互节点</h2>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>关键 prompt / 反馈摘录</th>
+<th>AI 的作用</th>
+<th>候选人保留的判断</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>定义问题</td>
+<td>“结合网易历史背景、公司文化，分析命题四可以从哪些视角上手。”</td>
+<td>发散传统人才盘点、MMO 策划岗位和连续机制视角</td>
+<td>不做通用九宫格展示，聚焦“老项目孵化新项目”的人才决策</td>
+</tr>
+<tr>
+<td>确定交付</td>
+<td>“希望定制化程度高，能上传数据、查看诊断报告，用 Web Coding 搭网页。”</td>
+<td>把概念框架转成信息架构与页面功能</td>
+<td>选择网页原型而非纯 PPT，要求现场可操作</td>
+</tr>
+<tr>
+<td>MMO 定制</td>
+<td>“MMO 游戏策划团队的人才画像跟其他团队有什么不一样？”</td>
+<td>拆分系统/数值、玩法/战斗、内容/叙事、活动/运营</td>
+<td>共同能力底座 + 岗位方向 + 项目阶段，不使用一把尺子</td>
+</tr>
+<tr>
+<td>连续盘点</td>
+<td>“如何更频繁、更轻量地做到人才追踪？”</td>
+<td>设计事件触发、月度轻看、季度校准、行动复查</td>
+<td>高频不等于反复评分；最小记录单位是事实与来源</td>
+</tr>
+<tr>
+<td>输入方式迭代</td>
+<td>“仅靠网页输入文字太传统，希望上传 TXT 或 Word 会议纪要自动解析。”</td>
+<td>增加文件读取、候选信号抽取和人工确认流程</td>
+<td>未经人工确认的候选信号不能进入人才档案</td>
+</tr>
+<tr>
+<td>AI 场景选择</td>
+<td>“基础信号抽取、智能组队、发展计划、团队风险都可做；本次先主做 AI 人才证据审计和追问助手。”</td>
+<td>对多个生成式 AI 模块进行优先级收敛</td>
+<td>选择低风险、高解释性的证据审计，不做自动人才定级</td>
+</tr>
+<tr>
+<td>视觉纠偏</td>
+<td>“整体用网易红；先按瑞士风做；封面不需要生成图片。”</td>
+<td>使用网页 PPT skill 和网格版式完成视觉实现</td>
+<td>品牌语境、主色、封面克制和截图实证由候选人明确</td>
+</tr>
+<tr>
+<td>质疑与核验</td>
+<td>“四级评分有什么依据？模拟姓名和项目名从哪里来？”</td>
+<td>补充等级设计与模拟数据说明</td>
+<td>主动识别“看起来合理但来源不清”的 AI 输出，要求明确边界</td>
+</tr>
+<tr>
+<td>汇报重构</td>
+<td>“问题—架构—网页实例—未来—个人复盘。”</td>
+<td>将产品页面、讲稿备注和演示时长组合成 11 页叙事</td>
+<td>强调自己的判断如何改变产品，而非只展示 AI 产物</td>
+</tr>
+</tbody></table>
+<h2>3. 使用的 skill 与工作流</h2>
+<ol>
+<li><strong>瑞士风网页 PPT skill</strong>：使用登记版式、演讲者视图、页面备注与时长校验；主色根据面试语境调整为网易红。</li>
+<li><strong>Web Coding 工作流</strong>：HTML / CSS / JavaScript 静态原型；模拟数据保存在浏览器；GitHub Pages 部署。</li>
+<li><strong>网页截图工作流</strong>：用本地无头浏览器加载真实原型，截取决策总览、连续信号、证据审计、组队和诊断报告，再嵌入汇报页面。</li>
+<li><strong>质量校验</strong>：校验页面 ID、讲稿备注、计划时长、瑞士版式登记、图片槽位与本地资源；浏览器逐页渲染检查。</li>
+<li><strong>DeepSeek 接口核验</strong>：依据官方文档核对 <code>https://api.deepseek.com/chat/completions</code>、<code>deepseek-flash</code>、<code>deepseek-v4-pro</code> 和 JSON Output；因静态网页可能受到跨域或现场网络影响，增加明确标注的本地模拟审计兜底。</li>
+</ol>
+<h2>4. 代表性工作流</h2>
+<pre><code class="language-text">题目拆解
+  → 传统盘点问题与 MMO 情境假设
+  → 人才画像、证据、决策、行动四层架构
+  → 模拟数据与网页原型
+  → 用户逐轮质疑与功能纠偏
+  → AI 证据审计重点模块
+  → 网页截图、汇报重构和演讲备注
+  → 静态校验、浏览器渲染、GitHub Pages 部署
+</code></pre>
+<h2>5. AI 输出的人工核验规则</h2>
+<ul>
+<li>不把缺少证据解释为能力不足。</li>
+<li>不把团队结果直接归因给个人。</li>
+<li>不把 AI 生成的分数、标签或建议用于晋升、淘汰和任用决定。</li>
+<li>每项证据保留来源、日期、贡献归属和人工确认状态。</li>
+<li>模拟内容必须明确标注，不把虚构姓名、项目和权重描述为网易真实做法。</li>
+<li>API Key 不进入仓库、不写入本地持久化；真实落地需要服务端代理和权限控制。</li>
+</ul>
+<h2>6. 候选人的纠偏与反思</h2>
+<p>做得较好：持续把 AI 的通用答案拉回 MMO 业务语境；主动要求文件输入、连续信号和证据审计；质疑评分依据与模拟命名；对视觉和信息层级做出明确取舍。</p>
+<p>仍需改进：在开发前更早锁定成功指标与汇报叙事；使用真实匿名样本校准等级和权重；邀请业务负责人、HRBP 与员工做可用性测试；补齐生产环境的服务端、权限、脱敏、日志和模型评估。</p>
+<h2>7. 交付物索引</h2>
+<ul>
+<li>人才盘点系统：<code>index.html</code></li>
+<li>网页演示文稿：<code>presentation/index.html</code></li>
+<li>汇报截图：<code>presentation/images/</code></li>
+<li>模拟导入材料：<code>sample-data/</code></li>
+<li>答辩题库：<code>答辩题库.md</code></li>
+<li>线上入口：<a href="https://drs1023.github.io/talent-review/">https://drs1023.github.io/talent-review/</a></li>
+</ul>
+<h2>8. 原型与 AI 模块截图</h2>
+<h3>连续信号：上传纪要并生成候选能力信号</h3>
+<p><img src="presentation/images/04-continuous-signal.png" alt="连续信号页面"></p>
+<h3>AI 人才证据审计与追问助手（模拟输出）</h3>
+<p><img src="presentation/images/05-ai-evidence-audit.png" alt="AI证据审计页面"></p>
+</main></body></html>

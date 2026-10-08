@@ -133,6 +133,7 @@ function renderEvidenceAudit(p){
  const result=current.result;
  return `<div class="card evidence-audit"><div class="card-head"><div><div class="tagline-red">AI EVIDENCE AUDIT</div><h2>AI人才证据审计与追问助手</h2><div class="sub">检查证据充分性、归属与时效，生成下一次沟通问题；不自动改分。</div></div>${pill('人工决策','gray')}</div>
  <div class="form-grid audit-controls"><div class="field"><label>DeepSeek API Key</label><input class="input" id="auditDeepseekKey" type="password" placeholder="${deepseekKey?'当前会话已填写':'sk-...'}" autocomplete="off" /></div><div class="field"><label>模型</label><select class="select" id="auditDeepseekModel"><option value="deepseek-flash" ${current.model==='deepseek-flash'?'selected':''}>deepseek-flash</option><option value="deepseek-v4-pro" ${current.model==='deepseek-v4-pro'?'selected':''}>deepseek-v4-pro</option></select></div><div class="field wide"><button class="button" data-action="run-evidence-audit">审计 ${esc(p.name)} 的证据</button></div></div>
+ <div class="button-row section-space"><button class="button small ghost" data-action="run-local-evidence-audit">使用本地模拟审计（演示兜底）</button><span class="tiny">不调用模型，结果会明确标注为模拟。</span></div>
  <div class="note section-space"><strong>${esc(current.status)}</strong><br><span class="tiny">仅发送该员工的模拟画像与证据；Key 只保留在当前页面内存。真实落地需脱敏、权限控制和服务端代理。</span></div>
  ${result?`<div class="audit-overview section-space"><div><span class="tiny">证据结论可信度</span><strong>${esc(result.confidence)}</strong></div><p>${esc(result.summary||'模型未给出总体摘要')}</p></div><div class="audit-grid section-space">
  <section><h3>已得到支持的判断</h3>${result.findings.map(x=>`<div class="audit-item"><strong>${esc(x.claim)}</strong>${x.evidenceIds.length?`<small>依据：${esc(auditEvidenceNames(x.evidenceIds)||x.evidenceIds.join('、'))}</small>`:''}</div>`).join('')||'<div class="empty">没有足够证据形成稳定判断</div>'}</section>
@@ -306,6 +307,22 @@ async function runEvidenceAudit(){
   evidenceAudit={personId:p.id,status:'审计完成，请由HRBP和业务负责人核对',model,result:normaliseAudit(parseJsonObject(content))};render();toast('AI证据审计已生成，不会自动修改评分');
  }catch(error){evidenceAudit={personId:p.id,status:`审计失败：${error.message}`,model,result:null};render();}
 }
+function runLocalEvidenceAudit(){
+ const p=person(state.selectedPersonId);
+ if(!p){toast('请先选择一位员工');return;}
+ const records=evFor(p.id), verified=records.filter(confirmed), pending=records.filter(e=>!confirmed(e));
+ const findings=verified.slice(0,2).map(e=>({claim:`${e.dimension}：${e.summary.slice(0,54)}${e.summary.length>54?'…':''}`,evidenceIds:[e.id]}));
+ const risks=[];
+ if(pending.length)risks.push({type:'归属待核验',description:`仍有 ${pending.length} 条记录未经主管确认，不能进入正式人才判断。`,evidenceIds:pending.slice(0,3).map(e=>e.id)});
+ if(new Set(records.map(e=>e.source)).size<2)risks.push({type:'单一来源',description:'现有记录缺少不同来源的交叉验证。',evidenceIds:records.slice(0,3).map(e=>e.id)});
+ const stale=records.filter(e=>age(e.date)>90);
+ if(stale.length)risks.push({type:'时效',description:`有 ${stale.length} 条记录超过90天，需要补充近期观察。`,evidenceIds:stale.slice(0,3).map(e=>e.id)});
+ const anchor=records[0];
+ const questions=[{question:anchor?`在“${anchor.title}”中，你本人具体负责了什么？`:'最近哪项任务最能代表你的实际贡献？',why:'核对本人贡献、协作边界与可观察结果。'},{question:`如果再次承担${p.role}相关任务，你会用什么指标验证方案有效？`,why:'补充结果标准并观察复盘闭环。'}];
+ const actions=[{action:`为${p.name}安排一次小范围任务验证，并由主管记录事实与结果`,owner:'直属主管 / HRBP',days:30}];
+ evidenceAudit={personId:p.id,status:'本地模拟审计已生成（非模型输出），请核对原始证据',model:evidenceAudit.model,result:{confidence:verified.length>=3?'中':'低',summary:'该结果由本地演示规则生成，用于展示审计、追问与补证流程，不代表模型或正式人才结论。',findings,risks,questions,actions}};
+ render();toast('本地模拟审计已生成，不会自动修改评分');
+}
 function commitAuditActions(){
  const p=person(evidenceAudit.personId), actions=evidenceAudit.result?.actions||[];
  if(!p||!actions.length){toast('没有可加入的验证行动');return;}
@@ -348,6 +365,7 @@ document.addEventListener('click',event=>{
   else if(action==='calibrate-person')calibrationForm();
   else if(action==='analyse-meeting-ai')analyseMeetingWithAi();
   else if(action==='run-evidence-audit')runEvidenceAudit();
+  else if(action==='run-local-evidence-audit')runLocalEvidenceAudit();
   else if(action==='commit-audit-actions')commitAuditActions();
   else if(action==='copy-audit-questions')copyAuditQuestions();
   else if(action==='clear-evidence-audit'){evidenceAudit={personId:state.selectedPersonId,status:'等待运行',model:evidenceAudit.model,result:null};render();}

@@ -1,2 +1,4 @@
 build/
 .codex-finalizer/
+.qa-presentation/
+output/

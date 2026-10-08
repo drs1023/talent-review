@@ -35,6 +35,7 @@ jobs:
           mkdir -p site/presentation/assets
           cp presentation/index.html site/presentation/index.html
           cp presentation/assets/motion.min.js site/presentation/assets/motion.min.js
+          cp -r presentation/images site/presentation/images
       - name: Upload site
         uses: actions/upload-pages-artifact@v4
         with:
